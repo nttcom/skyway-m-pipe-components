@@ -2085,10 +2085,10 @@ signal-exit@^3.0.0:
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.2.tgz#b5fdc08f1287ea1178628e415e25132b73646c6d"
   integrity sha1-tf3AjxKH6hF4Yo5BXiUTK3NkbG0=
 
-skyway-m-pipe-sdk@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/skyway-m-pipe-sdk/-/skyway-m-pipe-sdk-0.0.1.tgz#caf395a749f2eb8cbd4eec7f5783262c3123fbb6"
-  integrity sha512-uo4d5SoOlyzt58i2JV6hPNpTRnSodIUMRNXcAxVB1t25X5d50k2Gpav1eGWMkOI1f74cKSjD4Xckts5GARHiXA==
+skyway-m-pipe-sdk@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/skyway-m-pipe-sdk/-/skyway-m-pipe-sdk-0.0.2.tgz#b0fa744b2a21fbc52e73c0c94ea2c403a06e16ae"
+  integrity sha512-sQg/HRlxfss4cVPlPyJkHa5jLg8cL6CJJlVT9DRwL61cXmiOw+tqcqYOTxtXy3X/DbYatj5w/zW74DcFuRn5Cg==
   dependencies:
     "@google-cloud/trace-agent" "^3.4.0"
     "@grpc/proto-loader" "^0.3.0"
