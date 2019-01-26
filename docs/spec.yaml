@@ -1,0 +1,398 @@
+filewriter:
+  summary: "
+    Write chunked wav file from incoming PCM data into cloud storage.
+    File format is `recorded/${clientId}/${timestamp_in_sec}.wav`.
+    "
+  worker: /app/components/file-writer/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    DRIVER_NAME:
+      type: string
+      description: name of driver (currently S3 only supported )
+    S3_BUCKET:
+      type: string
+      description: (S3 only) bucket name
+    AWS_IDENTITY_POOL_ID:
+      type: string
+      description: (S3 only) identity pool id
+    AWS_REGION:
+      type: string
+      description: (S3 only) region name of AWS
+    CHUNK_TIME:
+      type: number
+      description: chunk time in second unit. default is 60
+      required: false
+    CLIENT_ID:
+      type: string
+      description: id of each client
+  incomingStream:
+    type:
+      type: string
+      value: "chunked-audio"
+    meta:
+      type: object
+      value: caps data of gstreamer
+    payload:
+      type: binary
+      value: "PCM data of 16bit little endien"
+recognizer:
+  summary: Speech to text using Google Speech API
+  worker: /app/components/voice-recognizer/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    OUT_PORT:
+      type: number
+      description: port number of this component
+    BASE64_GOOGLE_CREDENTIALS:
+      type: string
+      description: base64 encoded credentials of google cloud service account
+    G_PROJECT_ID:
+      type: string
+      description: project id of GCP
+    LANGUAGE_CODE:
+      type: string
+      description: language code (e.g. ja-JP) see more detail at https://cloud.google.com/speech-to-text/docs/languages
+  incomingStream:
+    type:
+      type: string
+      value: "chunked-audio"
+    meta:
+      type: object
+      value: caps data of gstreamer
+    payload:
+      type: binary
+      value: "PCM data of 16bit little endien"
+  outgoingStream:
+    type:
+      type: string
+      value: "voice-recognition-result"
+    meta:
+      type: null
+      value: null
+    payload:
+      type: binary encoded selialized JSON object
+      properties:
+        timestamp:
+          type: number
+          description: UNIX timestamp
+        results:
+          type: array
+          alternatives:
+            type: array
+            words:
+              type: array
+            transcript:
+              type: string
+              description: result of transcript
+            confidence:
+              type: number
+              description: score of confidence
+      examples:
+        timestamp: 1533615356871
+        results:
+        - alternatives:
+          - words: []
+            transcript: "こんにちは"
+            confidence: 0.8553773760795593
+translator:
+  summary: Machine translation using Google Translate API from result of recognizer function
+  worker: /app/components/translator/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    OUT_PORT:
+      type: number
+      description: port number of this component
+    BASE64_GOOGLE_CREDENTIALS:
+      type: string
+      description: base64 encoded credentials of google cloud service account
+    G_PROJECT_ID:
+      type: string
+      description: project id of GCP
+    TARGET_LANGUAGE:
+      type: string
+      description: target language (e.g. en) see more detail at https://cloud.google.com/translate/docs/languages
+  incomingStream:
+    type:
+      type: string
+      value: "voice-recognition-result"
+    meta:
+      type: null
+      value: null
+    payload:
+      type: binary encoded selialized JSON object
+      properties:
+        timestamp:
+          type: number
+          description: UNIX timestamp
+        results:
+          type: array
+          alternatives:
+            type: array
+            words:
+              type: array
+            transcript:
+              type: string
+              description: result of transcript
+            confidence:
+              type: number
+              description: score of confidence
+      examples:
+        timestamp: 1533615356871
+        results:
+        - alternatives:
+          - words: []
+            transcript: "こんにちは"
+            confidence: 0.8553773760795593
+  outgoingStream:
+    type:
+      type: string
+      value: "translation-result"
+    meta:
+      type: null
+      value: null
+    payload:
+      type: binary encoded selialized JSON object
+      properties:
+        timestamp:
+          type: number
+          description: UNIX timestamp
+        results:
+          type: array
+          alternatives:
+            type: array
+            words:
+              type: array
+            transcript:
+              type: string
+              description: result of transcript
+            confidence:
+              type: number
+              description: score of confidence
+        translation:
+          type: string
+          description: Text translated into the target language
+      examples:
+        timestamp: 1533615356871
+        results:
+        - alternatives:
+          - words: []
+            transcript: "こんにちは"
+            confidence: 0.8553773760795593
+        translation: "Hello"
+dbwriter:
+  summary: Write incoming payload data from translator into DynamoDB
+  worker: /app/components/db-writer/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    AWS_IDENTITY_POOL_ID:
+      type: string
+      description: identity pool id
+    AWS_REGION:
+      type: string
+      description: region name of AWS
+    TABLE_NAME:
+      type: string
+      description: name of table
+    CLIENT_ID:
+      type: string
+      description: id of each client
+  incomingStream:
+    type:
+      type: string
+      value: "translation-result"
+    meta:
+      type: null
+      value: null
+    payload:
+      type: binary encoded selialized JSON object
+      properties:
+        timestamp:
+          type: number
+          description: UNIX timestamp
+        results:
+          type: array
+          alternatives:
+            type: array
+            words:
+              type: array
+            transcript:
+              type: string
+              description: result of transcript
+            confidence:
+              type: number
+              description: score of confidence
+        translation:
+          type: string
+          description: Text translated into the target language
+      examples:
+        timestamp: 1533615356871
+        results:
+        - alternatives:
+          - words: []
+            transcript: "こんにちは"
+            confidence: 0.8553773760795593
+        translation: "Hello"
+publisher:
+  summary: Publish incoming payload data from previous component to Google PubSub
+  worker: /app/components/publisher/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    OUT_PORT:
+      type: number
+      description: port number of this component
+    BASE64_GOOGLE_CREDENTIALS:
+      type: string
+      description: base64 encoded credentials of google cloud service account
+    G_PROJECT_ID:
+      type: string
+      description: project id of GCP
+    TOPIC:
+      type: string
+      description: name of PubSub topic
+    CLIENT_ID:
+      type: string
+      description: id of each client
+  incomingStream:
+    type:
+      type: string
+      value: "translation-result"
+    meta:
+      type: null
+      value: null
+    payload:
+      type: binary encoded selialized JSON object
+      properties:
+        timestamp:
+          type: number
+          description: UNIX timestamp
+        results:
+          type: array
+          alternatives:
+            type: array
+            words:
+              type: array
+            transcript:
+              type: string
+              description: result of transcript
+            confidence:
+              type: number
+              description: score of confidence
+        translation:
+          type: string
+          description: Text translated into the target language
+      examples:
+        timestamp: 1533615356871
+        results:
+        - alternatives:
+          - words: []
+            transcript: "こんにちは"
+            confidence: 0.8553773760795593
+        translation: "Hello"
+logger:
+  summary: Logging out incoming stream data ( meta and payload )
+  worker: /app/components/logger/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    LABEL:
+      type: string
+      required: false
+      description: label of log (default: no_label)
+    PL_FORMAT:
+      type: string
+      required: false
+      description: output format of payload ( raw : raw binary, string : string ) (default = raw), In case setting `raw` you will see binary data output, `string` you will see strinfigied binary data
+    CLIENT_ID:
+      type: string
+      description: id of each client
+  inputStream:
+    type:
+      type: string
+      value: any arbitrary string
+    meta:
+      type: string
+      value: any arbitrary string
+    payload:
+      type: binary
+      value: any arbitrary binary. When you set `PL_FORMAT=string` it must be binary encoded string
+metric:
+  summary: Logging out traffic data of incoming stream data
+  worker: /app/components/metric/index.js
+  environments:
+    TOKEN:
+      type: string
+      description: token string
+    IN_HOST:
+      type: string
+      description: name of previous component
+    IN_PORT:
+      type: number
+      description: port number of previous component
+    LABEL:
+      type: string
+      required: false
+      description: label of log (default: no_label)
+    CLIENT_ID:
+      type: string
+      description: id of each client
+    INTERVAL:
+      type: number
+      required: false
+      description: interval in sec for calucuration incoming data rate (default: 10)
+  inputStream:
+    type:
+      type: string
+      value: any arbitrary string
+    meta:
+      type: string
+      value: any arbitrary string
+    payload:
+      type: binary
+      value: any arbitrary binary.
