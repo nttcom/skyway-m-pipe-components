@@ -29,7 +29,7 @@ function start() {
       delta += len
     })
 
-    setInterval( ev => {
+    setInterval( () => {
       const ts = new Date().toISOString()
       const Bps = delta / interval
 

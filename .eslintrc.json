@@ -1,0 +1,17 @@
+{
+    "extends": ["eslint:recommended"],
+    "plugins": [],
+    "parserOptions": {
+      "ecmaVersion": 2017
+    },
+    "env": {
+      "amd": true,
+      "es6": true,
+      "node": true,
+      "jest": true
+    },
+    "globals": {},
+    "rules": {
+      "no-console": 0
+    }
+}

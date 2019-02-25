@@ -42,7 +42,7 @@ class S3Driver extends BaseStorageDriver {
           reject(err)
         } else {
           console.log(`Successfully uploaded data to ${params.Bucket}/${params.Key}`);
-          resolve();
+          resolve(data);
         }
       });
     });

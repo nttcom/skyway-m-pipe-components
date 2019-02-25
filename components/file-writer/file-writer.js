@@ -15,7 +15,6 @@ const getWav = require('./libs/get-wav');
 const start = ( params ) => {
   const {
     inputStream,
-    token,
     clientId,
     driverName,
     driverParams,
@@ -24,7 +23,7 @@ const start = ( params ) => {
 
   let driver, driverObj;
 
-  if( params.driverName.toUpperCase() === 'S3' ) {
+  if( driverName.toUpperCase() === 'S3' ) {
     driverObj = require('./drivers/s3-driver');
     driver = new driverObj( driverParams );
   }
