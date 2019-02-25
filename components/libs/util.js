@@ -10,7 +10,7 @@
  * @return {String} - base64 encoded string
  */
 function objToBase64( obj ) {
-  const buff = new Buffer( JSON.stringify( obj ));
+  const buff = new Buffer.from( JSON.stringify( obj ));
 
   return buff.toString('base64');
 }
@@ -22,7 +22,7 @@ function objToBase64( obj ) {
  * @return {object}
  */
 function base64ToObj( str ) {
-  const buff = new Buffer(str, 'base64');
+  const buff = new Buffer.from(str, 'base64');
 
   return JSON.parse(buff.toString('ascii'));
 }

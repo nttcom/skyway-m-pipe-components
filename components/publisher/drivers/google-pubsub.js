@@ -29,10 +29,11 @@ class GooglePubSub {
    * Then application ready state
    */
   async start() {
+    let topicExists
     try {
       const topics = await this.pubsubClient.getTopics()
 
-      const topicExists = topics[0].filter( topic => {
+      topicExists = topics[0].filter( topic => {
         const name = topic.name
         const t = this.params.topic
 

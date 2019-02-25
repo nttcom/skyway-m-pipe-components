@@ -1,5 +1,5 @@
-const VoiceRecognizer = require('./voice-recognizer')
 const { InputStream, OutputStream } = require('skyway-m-pipe-sdk/connector');
+const VoiceRecognizer = require('./voice-recognizer')
 const { base64ToObj } = require('../libs/util')
 
 const token = process.env.TOKEN;

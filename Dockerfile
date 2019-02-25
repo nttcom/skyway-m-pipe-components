@@ -1,22 +1,19 @@
-FROM node:8.12-alpine as builder
+FROM node:10.15-alpine as builder
 
 RUN apk update \
   && apk add --update \
        git \
-       openssh \
-       openssh-client \
-       pkgconfig \
-       ca-certificates
+       pkgconfig
 
 # App
 WORKDIR /app
 COPY ./package.json /app/package.json
-COPY ./yarn.lock    /app/yarn.lock
+COPY ./package-lock.json /app/package-lock.json
 COPY ./components   /app/components
-RUN yarn install
+RUN npm install --production
 
 
-FROM node:8.9-alpine
+FROM node:10.15-alpine
 
 COPY --from=builder /app /app
 

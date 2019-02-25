@@ -28,7 +28,7 @@ const start = ( params, callback ) => {
   // we will simply use average volume. When it exceeds threshold value,
   // we will consider that voice has started.
   let started = false, cnt = 0;
-  const timer = setInterval( async () => {
+  setInterval( async () => {
     const sum = averages.reduce( ( val, accum ) => {
       return accum + Math.abs(val)
     }, 0)

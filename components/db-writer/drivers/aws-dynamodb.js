@@ -151,7 +151,7 @@ class AWSDynamoDB {
         if( err ) {
           reject(err)
         } else {
-          resolve(err)
+          resolve(data)
         }
       })
     })
@@ -172,7 +172,7 @@ class AWSDynamoDB {
         if( err ) {
           reject(err)
         } else {
-          resolve(err)
+          resolve(data)
         }
       })
     })

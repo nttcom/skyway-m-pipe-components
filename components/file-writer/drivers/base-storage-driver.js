@@ -6,8 +6,9 @@ class BaseStorage {
    *
    */
   writeFile( filePath, data ) {
-    return new Promise((resolve, reject) => {
+    return new Promise( resolve => {
       console.log('`writeFile()` is not implemented');
+      console.log(`  filePath - ${filePath}, data - ${data}`)
       resolve();
     });
   }
