@@ -1,6 +1,6 @@
 {
   "name": "skyway-m-pipe-components",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Built-in function components of SkyWay Media Pipeline Factory",
   "main": "index.js",
   "scripts": {
