@@ -1,0 +1,258 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@1.1.0
+  gcp-cli: circleci/gcp-cli@1.0.4
+
+executors:
+  node:
+    docker:
+      - image: circleci/node:11.10.1
+  gcloud:
+    docker:
+      - image: google/cloud-sdk
+
+commands:
+  setup_env_vars:
+    description: "Setup environment variables"
+    parameters:
+      deployment_version:
+        default: master
+        type: string
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "5d:8d:93:86:6f:2b:06:c8:15:00:b4:42:cf:d1:5b:e5"
+      - run:
+          name: Clone deployment repository
+          command: |
+            ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+            git clone -b << parameters.deployment_version >> git@github.com:nttcom-webcore/m-pipe-deployment
+      - run:
+          name: Import env vars for given environment
+          command: |
+            cat m-pipe-deployment/env/${ENVIRONMENT}.toml | egrep -v "^\[" | grep -v "{{ secret }}" \
+            | sed -E -e 's#^(.+)[[:space:]]+=[[:space:]]+"(.+)"[[:space:]]*$#export \1=\2#g' >> ${BASH_ENV};
+  resolve_version_from_trigger:
+    description: "Resolve VERSION from CircleCI trigger"
+    steps:
+      - run:
+          name: Setup Environment Variable VERSION
+          command: |
+            if [[ ${CIRCLE_TAG} == "" ]]; then
+              if [[ ${CIRCLE_BRANCH} == 'master' ]]; then
+                echo "export VERSION=latest" >> ${BASH_ENV};
+              else
+                echo "export VERSION=${CIRCLE_BRANCH}" >> ${BASH_ENV};
+              fi
+            else
+              echo "export VERSION=${CIRCLE_TAG}" >> ${BASH_ENV};
+            fi
+  resolve_cache_version:
+    description: Resolve cache version without patch number
+    steps:
+      - run:
+          name: Resolve cache version without patch number
+          command: |
+            git describe --tags $(git rev-list --tags --max-count=1) | cut -d'.' -f1,2 > cache_version.txt
+  publish_image:
+    description: "Publish docker image to Google Container Registry"
+    parameters:
+      image:
+        type: string
+      dockerfile:
+        type: string
+        default: "Dockerfile"
+    steps:
+      - run:
+          name: Setup Environment Variable
+          command: |
+            echo "export IMAGE_NAME=${GOOGLE_CLOUD_REGISTRY}/m-pipe/<< parameters.image >>" >> ${BASH_ENV}
+            echo "export CACHE_FILE=/caches/<< parameters.image >>.tar" >> ${BASH_ENV}
+      - gcp-cli/initialize:
+          google-project-id: GCP_PROJECT_ID
+          gcloud-service-key: GCP_SERVICE_ACCOUNT_IMAGE
+          google-compute-zone: GCP_COMPUTE_ZONE
+      - setup_remote_docker
+      - resolve_cache_version
+      - restore_cache:
+          keys:
+            - v1-<< parameters.image >>-{{ checksum "cache_version.txt"}}
+      - run:
+          name: Load Docker image layer cache
+          command: |
+            set +o pipefail
+            docker load -i ${CACHE_FILE} | true
+      - run:
+          name: Docker build
+          command: |
+            docker build \
+              --build-arg VERSION=${VERSION} \
+              --build-arg GIT_COMMIT=${CIRCLE_SHA1} \
+              -t ${IMAGE_NAME}:${VERSION} \
+              -f << parameters.dockerfile >> .
+      - run:
+          name: Save Docker image layer cache
+          command: |
+            mkdir -p $(echo ${CACHE_FILE} | awk -F'[/]' -v 'OFS=/' '{$NF=""; print $0}')
+            docker save -o ${CACHE_FILE} ${IMAGE_NAME}:${VERSION} $(docker images | tail -n +2 | awk '{print $3}' | xargs -n1 docker history -q | grep -v missing)
+      - save_cache:
+          key: v1-<< parameters.image >>-{{ checksum "cache_version.txt"}}-{{ epoch }}
+          paths:
+            - /caches/
+      - run:
+          name: Push image to Google Cloud Repository
+          command: |
+            LOGIN_HOST=$(echo ${IMAGE_NAME} | cut -d'/' -f1)
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${LOGIN_HOST}
+            docker push ${IMAGE_NAME}:${VERSION}
+  migrate_image:
+    description: "Migrate docker image from given env"
+    parameters:
+      image:
+        type: string
+      from:
+        type: string
+    steps:
+      - run:
+          name: Setup Environment Variable
+          command: |
+            echo "export IMAGE_NAME=${GOOGLE_CLOUD_REGISTRY}/m-pipe/<< parameters.image >>" >> ${BASH_ENV}
+            echo "export CACHE_FILE=/caches/<< parameters.image >>.tar" >> ${BASH_ENV}
+      - gcp-cli/initialize:
+          google-project-id: GCP_PROJECT_ID
+          gcloud-service-key: GCP_SERVICE_ACCOUNT_IMAGE
+          google-compute-zone: GCP_COMPUTE_ZONE
+      - setup_remote_docker
+      - resolve_cache_version
+      - restore_cache:
+          keys:
+            - v1-<< parameters.image >>-{{ checksum "cache_version.txt"}}
+      - run:
+          name: Load Docker image layer cache
+          command: |
+            set +o pipefail
+            docker load -i ${CACHE_FILE} | true
+      - run:
+          name: Migrate Docker image
+          command: |
+            BASE_REPO=$(grep GOOGLE_CLOUD_REGISTRY m-pipe-deployment/env/<< parameters.from >>.toml | sed -E -e 's#^.+[[:space:]]+=[[:space:]]+"(.+)"[[:space:]]*$#\1#g')
+            FROM_IMAGE=${BASE_REPO}/m-pipe/<< parameters.image >>:${VERSION}
+            docker image tag ${FROM_IMAGE} ${IMAGE_NAME}:${VERSION}
+            LOGIN_HOST=$(echo ${IMAGE_NAME} | cut -d'/' -f1)
+            gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${LOGIN_HOST}
+            docker push ${IMAGE_NAME}:${VERSION}
+jobs:
+  test:
+    executor: node
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package.json" }}
+            - v1-dependencies-
+      - run: yarn install
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+      - run: yarn test
+  send_approval_link_to_push:
+    executor: slack/alpine
+    steps:
+      - slack/approval:
+          mentions: here
+          url: https://circleci.com/workflow-run/${CIRCLE_WORKFLOW_ID}
+          webhook: https://hooks.slack.com/services/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
+  build_and_push_image:
+    executor:
+      gcloud
+    steps:
+      - checkout
+      - setup_env_vars
+      - resolve_version_from_trigger
+      - publish_image:
+          image: components
+      - slack/status:
+          webhook: https://hooks.slack.com/services/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
+  release:
+    executor:
+      gcloud
+    steps:
+      - checkout
+      - setup_env_vars
+      - resolve_version_from_trigger
+      - migrate_image:
+          image: components
+          from: staging
+
+# This workflow is supposed to use with "Run only for Pull Request" option
+workflows:
+  version: 2
+  pull_request_checks:
+    jobs:
+      - test:
+          filters:
+            branches:
+              ignore: master
+  master_to_dev:
+    jobs:
+      - test:
+          filters:
+            branches:
+              only: master
+            tags:
+              ignore: /^v\d.*/
+      - build_and_push_image:
+          context: mpipe-dev
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+            tags:
+              ignore: /^v\d.*/
+  release: # tagged build for default master branch.
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /^v\d.*/
+            branches:
+              ignore: /.*/
+      - build_and_push_image:
+          context: mpipe-staging
+          requires:
+            - test
+          filters:
+            tags:
+              only: /^v\d.*/
+            branches:
+              ignore: /.*/
+      - wait_approval_to_push:
+          type: approval
+          requires:
+            - build_and_push_image
+          filters:
+            tags:
+              only: /^v\d.*/
+            branches:
+              ignore: /.*/
+      - send_approval_link_to_push:
+          requires:
+            - build_and_push_image
+          filters:
+            tags:
+              only: /^v\d.*/
+            branches:
+              ignore: /.*/
+      - release:
+          context: mpipe-prod
+          requires:
+            - wait_approval_to_push
+          filters:
+            tags:
+              only: /^v\d.*/
+            branches:
+              ignore: /.*/
