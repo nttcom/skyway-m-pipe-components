@@ -190,20 +190,8 @@ jobs:
 # This workflow is supposed to use with "Run only for Pull Request" option
 workflows:
   version: 2
-  pull_request_checks:
-    jobs:
-      - test:
-          filters:
-            branches:
-              ignore: master
   master_to_dev:
     jobs:
-      - test:
-          filters:
-            branches:
-              only: master
-            tags:
-              ignore: /^v\d.*/
       - build_and_push_image:
           context: mpipe-dev
           requires:
@@ -215,12 +203,6 @@ workflows:
               ignore: /^v\d.*/
   release: # tagged build for default master branch.
     jobs:
-      - test:
-          filters:
-            tags:
-              only: /^v\d.*/
-            branches:
-              ignore: /.*/
       - build_and_push_image:
           context: mpipe-staging
           requires:
