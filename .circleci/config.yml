@@ -194,8 +194,6 @@ workflows:
     jobs:
       - build_and_push_image:
           context: mpipe-dev
-          requires:
-            - test
           filters:
             branches:
               only: master
@@ -205,8 +203,6 @@ workflows:
     jobs:
       - build_and_push_image:
           context: mpipe-staging
-          requires:
-            - test
           filters:
             tags:
               only: /^v\d.*/
