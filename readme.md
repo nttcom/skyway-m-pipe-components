@@ -6,5 +6,9 @@ Collection of components of M-PIPE.
 
 see [docs/spec.yaml](./docs/spec.yaml)
 
+# Development
+
+see [development](./development.md)
+
 ---
 Copyright. NTT Communications Corporation All rights reserved.
