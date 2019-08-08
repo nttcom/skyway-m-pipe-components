@@ -22,7 +22,7 @@ commands:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - "5d:8d:93:86:6f:2b:06:c8:15:00:b4:42:cf:d1:5b:e5"
+            - "a4:8b:d0:2f:0c:22:18:92:70:70:1c:2b:29:9b:da:0f"
       - run:
           name: Clone deployment repository
           command: |
